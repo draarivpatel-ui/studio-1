@@ -1,0 +1,38 @@
+{
+  "what": {
+    "value": 3.51,
+    "unit": "x smaller",
+    "measuredAt": "2026-11-23",
+    "source": "bench/north-star.json"
+  },
+  "who": {
+    "value": 2,
+    "unit": "visitors",
+    "measuredAt": "2026-11-23",
+    "source": "https://studio.flisk.si/"
+  },
+  "why": {
+    "value": 3.8,
+    "unit": "minutes",
+    "measuredAt": "2026-11-23",
+    "source": "https://studio.flisk.si/"
+  },
+  "how": {
+    "value": 20,
+    "unit": "tests",
+    "measuredAt": "2026-11-23",
+    "source": "https://github.com/flisk-sh/studio/actions/runs/45195353005"
+  },
+  "where": {
+    "value": 5,
+    "unit": "visits",
+    "measuredAt": "2026-11-23",
+    "source": "https://studio.flisk.si/"
+  },
+  "when": {
+    "value": 2.5,
+    "unit": "visits per visitor",
+    "measuredAt": "2026-11-23",
+    "source": "https://studio.flisk.si/"
+  }
+}

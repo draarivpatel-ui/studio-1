@@ -34,15 +34,15 @@ jobs:
       - name: Stop until the Anthropic key is set
         if: env.ANTHROPIC_API_KEY == ''
         run: echo "::warning::ANTHROPIC_API_KEY is not set; autofix is off." && exit 1
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: oven-sh/setup-bun@v2
-      - uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - run: bun install --frozen-lockfile
-      - uses: anthropics/claude-code-action@v1
+      - uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: >-
@@ -72,7 +72,7 @@ jobs:
         run: |
           git add -N . && git diff > fix.patch || true
           if [ -s fix.patch ]; then echo "has_patch=true" >> "$GITHUB_OUTPUT"; else echo "has_patch=false" >> "$GITHUB_OUTPUT"; fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: steps.patch.outputs.has_patch == 'true'
         with:
           name: fix-patch
@@ -89,14 +89,14 @@ jobs:
     outputs:
       ok: ${{ steps.result.outputs.ok }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: fix-patch
-      - uses: oven-sh/setup-bun@v2
-      - uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - name: Policy (trusted script from main, not from the patch)
@@ -115,7 +115,7 @@ jobs:
       - id: result
         run: |
           if [ "${{ steps.policy.outcome }}" = "success" ] && [ "${{ steps.tests.outcome }}" = "success" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "ok=false" >> "$GITHUB_OUTPUT"; fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: verify-report
           path: policy.txt
@@ -136,8 +136,8 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       N: ${{ github.event.issue.number }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: fix-patch
       - run: |
@@ -168,8 +168,8 @@ jobs:
       N: ${{ github.event.issue.number }}
       HAS_PATCH: ${{ needs.fix.outputs.has_patch }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         if: env.HAS_PATCH == 'true'
         with:
           name: fix-patch
