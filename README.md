@@ -29,6 +29,10 @@ Use **Report a problem** (an issue form). An agent reads it and proposes a fix. 
 
 To switch it on a maintainer adds the repository secrets `ANTHROPIC_API_KEY`, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, and turns on *Allow GitHub Actions to create and approve pull requests* in Settings, Actions. Without them nothing runs.
 
+## For AI agents
+
+A local MCP server (resize photos, merge and watermark PDFs on your own files) is in [`mcp/`](mcp/).
+
 ## Run it yourself
 
 You need [Bun](https://bun.sh).
