@@ -119,9 +119,11 @@ function Downloads({result}) {
 const ICONS = {photo: PhotoIcon, merge: DocumentDuplicateIcon, shrink: ArrowsPointingInIcon, mark: PencilSquareIcon};
 const RESOURCES = [['Source', 'https://github.com/flisk-sh/studio'], ['Flisk', 'https://flisk.si/'], ['Report a problem', 'https://github.com/flisk-sh/studio/issues']];
 
+const startTask = () => { const h = location.hash.slice(1); return ['photo', 'merge', 'shrink', 'mark'].includes(h) ? h : 'photo'; };
+
 export default function App() {
   const unlocked = unlockedAtLoad;
-  const [task, setTask] = useState(() => { const h = location.hash.slice(1); return ['photo', 'merge', 'shrink', 'mark'].includes(h) ? h : 'photo'; });
+  const [task, setTask] = useState(startTask);
   const mode = task === 'photo' ? 'photo' : 'pdf', action = task;
   const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -130,14 +132,14 @@ export default function App() {
   const [size, setSize] = useState(1200);
   const [square, setSquare] = useState('fit');
   const [format, setFormat] = useState('jpg');
-  const [quality, setQuality] = useState(82);
+  const [quality, setQuality] = useState(() => startTask() === 'shrink' ? 60 : 82);
   const [mark, setMark] = useState('');
 
   // Picking again adds to the list (it no longer replaces it), skipping a file that is already there.
   const onFiles = (v) => setFiles((old) => { const add = (v ? [].concat(v) : []).filter((f) => !old.some((o) => o.name === f.name && o.size === f.size && o.lastModified === f.lastModified)); return old.concat(add); });
   const removeAt = (i) => setFiles((old) => old.filter((_, j) => j !== i));
   const moveAt = (i, d) => setFiles((old) => { const n = old.slice(); const [x] = n.splice(i, 1); n.splice(i + d, 0, x); return n; });
-  const pick = (t) => { setTask(t); setFiles([]); setLog(''); setResult(null); if (t === 'shrink' && quality > 95) setQuality(60); };
+  const pick = (t) => { setTask(t); setFiles([]); setLog(''); setResult(null); setQuality(t === 'shrink' ? 60 : 82); };
   const run = async () => {
     let list = files;
     if (!unlocked && list.length > FREE_FILES) { list = list.slice(0, FREE_FILES); }
