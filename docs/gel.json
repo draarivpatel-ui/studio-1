@@ -32,5 +32,17 @@
     "queue-main-duplicates": "block",
     "queue-required-satisfiable": "block",
     "sonar-patterns": "block"
+  },
+  "north_star": {
+    "metric": "how many times smaller 25 photos (3000x2000 JPEG) get when resized to Web 1200 in the browser",
+    "baseline": "the original photos (1x, no change)",
+    "target": {
+      "ratio": 3,
+      "better": "higher"
+    },
+    "result": "bench/north-star.json",
+    "evidence": "bench/north-star.mjs",
+    "measure": "bun bench/north-star.mjs",
+    "max_age_days": 90
   }
 }
