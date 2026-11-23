@@ -23,6 +23,12 @@ There is no server for your files. Everything runs in the page, using your own c
 
 Free for now, with no limits and no accounts.
 
+## Reports and automatic fixes
+
+Use **Report a problem** (an issue form). An agent reads it and proposes a fix. Code, not a model, then checks the fix: only `src/` and `tests/`, at most 120 changed lines, a test added, no network code, and the full browser test suite must pass. If everything passes it is merged and deployed; otherwise a draft PR waits for a person. Rules are in `scripts/autofix-policy.mjs`.
+
+To switch it on a maintainer adds the repository secrets `ANTHROPIC_API_KEY`, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, and turns on *Allow GitHub Actions to create and approve pull requests* in Settings, Actions. Without them nothing runs.
+
 ## For AI agents
 
 A local MCP server (resize photos, merge and watermark PDFs on your own files) is in [`mcp/`](mcp/).
