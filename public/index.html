@@ -75,7 +75,7 @@ if (qs.get("unlocked") === UNLOCK_TOKEN) { store.set("studio-unlocked","1"); his
 const unlocked = () => store.get("studio-unlocked") === "1";
 function renderLock(){
   document.getElementById("lock").innerHTML = unlocked()
-    ? "Unlocked: no limits, no watermark mark. Thank you."
+    ? `Unlocked: no limits, no mark. Thank you. To unlock another browser or device, <a href="${location.origin}${location.pathname}?unlocked=${UNLOCK_TOKEN}">bookmark this link</a>.`
     : `Free: ${FREE_FILES} files per batch and a small "${MARK}" mark. <a href="${PAYMENT_LINK}">Unlock for good</a> (one payment, no account).`;
 }
 renderLock();
