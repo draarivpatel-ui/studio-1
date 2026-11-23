@@ -82,21 +82,6 @@ function Viewer({result, onClose}) {
 
 const ICONS = {photo: PhotoIcon, merge: DocumentDuplicateIcon, shrink: ArrowsPointingInIcon, mark: PencilSquareIcon};
 const RESOURCES = [['Source', 'https://github.com/flisk-sh/studio'], ['Flisk', 'https://flisk.si/'], ['Report a problem', 'https://github.com/flisk-sh/studio/issues']];
-const FLISK_SITES = [['Chat', 'https://chat.flisk.si/'], ['Pages', 'https://pages.flisk.si/'], ['Citable', 'https://citable.flisk.si/'], ['Grow', 'https://grow.flisk.si/'], ['Learn', 'https://learn.flisk.si/']];
-
-// "from Flisk" menu: the Flisk sites, in the header, as in the merged-header design.
-function FromFlisk() {
-  const [open, setOpen] = useState(false);
-  return (
-    <span className="from" onKeyDown={(e) => e.key === 'Escape' && setOpen(false)} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}>
-      from <button type="button" className="from-btn" aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen(!open)}>Flisk <ChevronDownIcon width="12" height="12" /></button>
-      {open && <div className="from-menu" role="menu">
-        <a role="menuitem" href="https://flisk.si/">All Flisk tools</a>
-        {FLISK_SITES.map(([l, h]) => <a role="menuitem" key={l} href={h}>{l}</a>)}
-      </div>}
-    </span>
-  );
-}
 
 export default function App() {
   const unlocked = unlockedAtLoad;
@@ -133,16 +118,6 @@ export default function App() {
   const cur = TASKS.find((t) => t[0] === task);
   return (
     <div className="shell">
-      <header className="top">
-        <div className="brand">
-          <span className="logo" aria-hidden="true"><PhotoIcon width="22" height="22" /></span>
-          <div className="brandtext">
-            <Heading level={1}>Studio</Heading>
-            <FromFlisk />
-          </div>
-        </div>
-        <Text color="secondary" className="tag">Photos and PDFs, processed in your browser. Nothing is uploaded.</Text>
-      </header>
       <div className="body">
         <nav className="side" aria-label="Tasks">
           <div className="side-h">Tasks</div>
