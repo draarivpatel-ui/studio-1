@@ -76,7 +76,7 @@ test.describe('pdf', () => {
   });
   test('shrink never makes a text PDF bigger', async ({page}) => {
     await run(page, 'Shrink PDFs', [{kind: 'pdf', name: 'big.pdf', pages: 30}]);
-    await expect(page.getByText(/already small/)).toBeVisible();
+    await expect(page.getByText(/could not be made smaller/)).toBeVisible();
     const m = (await page.getByText(/^Done\./).first().innerText()).match(/(\d+) KB → (\d+) KB/); expect(+m[2]).toBeLessThanOrEqual(+m[1] * 1.1);
   });
   test('shrink makes an already-compressed scanned PDF smaller, with less detail if needed', async ({page}) => {
