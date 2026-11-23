@@ -18,8 +18,25 @@ export async function give(page, specs) {
       const xo = t.length; t += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n` + xr.map((n) => String(n).padStart(10, '0') + ' 00000 n \n').join('') + `trailer\n<</Size ${objs.length + 1}/Root 1 0 R>>\nstartxref\n${xo}\n%%EOF`;
       return new File([t], s.name, {type: 'application/pdf'});
     };
+    // A scanned-book style PDF: one already-compressed JPEG per page, no text.
+    const mkscan = async (s) => {
+      const k = document.createElement('canvas'); k.width = s.w; k.height = s.h; const g = k.getContext('2d');
+      g.fillStyle = '#f4f1ea'; g.fillRect(0, 0, s.w, s.h);
+      for (let i = 0; i < 400; i++) { g.fillStyle = `rgba(${Math.random() * 90 | 0},${Math.random() * 90 | 0},${Math.random() * 90 | 0},.7)`; g.fillRect(Math.random() * s.w, Math.random() * s.h, 6 + Math.random() * 40, 3 + Math.random() * 6); }
+      const jb = new Uint8Array(await (await new Promise((r) => k.toBlob(r, 'image/jpeg', s.q))).arrayBuffer());
+      const enc = new TextEncoder(), parts = []; let len = 0; const push = (x) => { const u = typeof x === 'string' ? enc.encode(x) : x; parts.push(u); len += u.length; }; const xr = [];
+      const obj = (n, fn) => { xr[n] = len; push(`${n} 0 obj\n`); fn(); push('\nendobj\n'); };
+      push('%PDF-1.4\n'); obj(1, () => push('<</Type/Catalog/Pages 2 0 R>>')); const kids = []; for (let i = 0; i < s.pages; i++) kids.push(`${4 + i * 3} 0 R`);
+      obj(2, () => push(`<</Type/Pages/Kids[${kids.join(' ')}]/Count ${s.pages}>>`)); obj(3, () => push('<<>>'));
+      for (let i = 0; i < s.pages; i++) { const base = 4 + i * 3;
+        obj(base, () => push(`<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Resources<</XObject<</Im0 ${base + 1} 0 R>>>>/Contents ${base + 2} 0 R>>`));
+        obj(base + 1, () => { push(`<</Type/XObject/Subtype/Image/Width ${s.w}/Height ${s.h}/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length ${jb.length}>>stream\n`); push(jb); push('\nendstream'); });
+        const c = 'q 595 0 0 842 0 0 cm /Im0 Do Q'; obj(base + 2, () => push(`<</Length ${c.length}>>stream\n${c}\nendstream`)); }
+      const xo = len, total = 4 + s.pages * 3; push(`xref\n0 ${total}\n0000000000 65535 f \n`); for (let n = 1; n < total; n++) push(String(xr[n]).padStart(10, '0') + ' 00000 n \n');
+      push(`trailer\n<</Size ${total}/Root 1 0 R>>\nstartxref\n${xo}\n%%EOF`); return new File(parts, s.name, {type: 'application/pdf'});
+    };
     const files = [];
-    for (const s of specs) files.push(s.kind === 'pdf' ? mkpdf(s) : s.kind === 'raw' ? new File([new Uint8Array(s.bytes)], s.name, {type: s.type}) : await mkimg(s));
+    for (const s of specs) files.push(s.kind === 'scanpdf' ? await mkscan(s) : s.kind === 'pdf' ? mkpdf(s) : s.kind === 'raw' ? new File([new Uint8Array(s.bytes)], s.name, {type: s.type}) : await mkimg(s));
     const dt = new DataTransfer(); files.forEach((f) => dt.items.add(f));
     const input = document.querySelector('input[type=file]'); input.files = dt.files; input.dispatchEvent(new Event('change', {bubbles: true}));
   }, specs);

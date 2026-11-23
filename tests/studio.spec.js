@@ -76,8 +76,17 @@ test.describe('pdf', () => {
   });
   test('shrink never makes a text PDF bigger', async ({page}) => {
     await run(page, 'Shrink PDFs', [{kind: 'pdf', name: 'big.pdf', pages: 30}]);
-    await expect(page.getByText(/already small/)).toBeVisible();
+    await expect(page.getByText(/could not be made smaller/)).toBeVisible();
     const m = (await page.getByText(/^Done\./).first().innerText()).match(/(\d+) KB → (\d+) KB/); expect(+m[2]).toBeLessThanOrEqual(+m[1] * 1.1);
+  });
+  test('shrink makes an already-compressed scanned PDF smaller, with less detail if needed', async ({page}) => {
+    await run(page, 'Shrink PDFs', [{kind: 'scanpdf', name: 'book.pdf', pages: 8, w: 1500, h: 2100, q: 0.45}]);
+    const m = (await page.getByText(/^Done\./).first().innerText()).match(/(\d+) KB → (\d+) KB/);
+    expect(+m[2]).toBeLessThan(+m[1] * 0.8);
+    await expect(page.getByText(/could not be made smaller/)).toHaveCount(0);
+  });
+  test('shrink starts at 60% quality, not the photo default', async ({page}) => {
+    await task(page, 'Shrink PDFs'); await expect(page.getByLabel('Shrink quality, %')).toHaveValue('60');
   });
   test('watermark in Ukrainian works on a PDF', async ({page}) => { await run(page, 'Watermark PDFs', [{kind: 'pdf', name: 'w.pdf', pages: 2}], () => page.getByLabel('Watermark text (optional)').fill('Конфіденційно')); });
   test('a file that is not a PDF gives a clear message', async ({page}) => {
