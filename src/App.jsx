@@ -1,4 +1,4 @@
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useRef} from 'react';
 import {Button} from '@astryxdesign/core/Button';
 import {Text} from '@astryxdesign/core/Text';
 import {Heading} from '@astryxdesign/core/Heading';
@@ -9,7 +9,7 @@ import {TextInput} from '@astryxdesign/core/TextInput';
 import {Banner} from '@astryxdesign/core/Banner';
 import {PhotoIcon, DocumentDuplicateIcon, ArrowsPointingInIcon, PencilSquareIcon, ArrowUpRightIcon, ChevronDownIcon, ChevronUpIcon, XMarkIcon} from '@heroicons/react/24/outline';
 import {Demo} from './Demos.jsx';
-import {pdfThumb, photoBatch, pdfBatch, initUnlock, FREE_FOR_NOW, FREE_FILES, MARK, PAYMENT_LINK, UNLOCK_TOKEN} from './engine.js';
+import {pdfThumb, photoBatch, pdfBatch, matrix, buildVariant, initUnlock, FREE_FOR_NOW, FREE_FILES, MARK, PAYMENT_LINK, UNLOCK_TOKEN} from './engine.js';
 
 const TASKS = [
   ['photo', 'Photos', 'Resize, crop square, compress, add a mark, get a ZIP'],
@@ -71,11 +71,47 @@ function Viewer({result, onClose}) {
             {x.kind === 'image' ? <img src={x.url} alt={x.name} /> : <span className="pdfchip">{x.name}</span>}
           </button>))}
         </div>)}
+      <Downloads key={result.blob.size + result.name + result.items.length} result={result} />
       <div className="stage">
         {it.kind === 'image' ? <img src={it.url} alt={it.name} /> : <iframe title={it.name} src={it.url} />}
       </div>
       {it.kind === 'image' && Math.max(...String(it.dims).split(' × ').map(Number)) < 1000 && <Banner type="warning" description="This is small. Text may be hard to read. Close this, set 1600 px or more (PNG for text) and run again; your files are still selected." />}
       <Text type="supporting" color="secondary">{it.name}{it.dims ? ' · ' + it.dims + ' px' : ''}{it.before ?` · ${kbs(it.before)} → ${kbs(it.after)}` : ''}</Text>
+    </VStack>
+  );
+}
+
+// Matrix of ready downloads: rows are watermark / size, columns are format or strength. Each file is built when clicked, then kept.
+function Downloads({result}) {
+  const {rows, cols} = matrix(result.task, result.opts);
+  const cache = useRef(new Map());
+  const [busy, setBusy] = useState(''), [sizes, setSizes] = useState({}), [err, setErr] = useState('');
+  const go = async (row, col) => {
+    const key = row.id + '/' + col.id; setErr('');
+    let v = cache.current.get(key);
+    if (!v) {
+      setBusy(key);
+      try { v = await buildVariant(result.task, result.files, result.opts, row, col, () => {}); cache.current.set(key, v); setSizes((s) => ({...s, [key]: v.blob.size})); }
+      catch (e) { setErr(friendly(e)); setBusy(''); return; }
+      setBusy('');
+    }
+    save(v.blob, v.name);
+  };
+  return (
+    <VStack gap={2} className="matrix-wrap">
+      <Text weight="semibold">More ways to download</Text>
+      <div className="matrix" role="group" aria-label="Download options" style={{gridTemplateColumns: `minmax(120px, 1.3fr) repeat(${cols.length}, minmax(0, 1fr))`}}>
+        <span />
+        {cols.map((c) => <span key={c.id} className="mx-h">{c.label}</span>)}
+        {rows.map((r) => [
+          <span key={r.id} className="mx-r">{r.label}</span>,
+          ...cols.map((c) => { const k = r.id + '/' + c.id; return (
+            <button type="button" key={k} className="mx-cell" aria-label={`Download ${r.label}, ${c.label}`} disabled={!!busy} onClick={() => go(r, c)}>
+              {busy === k ? 'Building…' : <>Download{sizes[k] ? <small>{kbs(sizes[k])}</small> : null}</>}
+            </button>); }),
+        ])}
+      </div>
+      {err && <Text color="warning">{err}</Text>}
     </VStack>
   );
 }
@@ -109,7 +145,7 @@ export default function App() {
     try {
       const o = {unlocked, mark: mark.trim(), quality, size, format, square: square === 'square', action};
       const r = mode === 'photo' ? await photoBatch(list, o, setLog) : await pdfBatch(list, o, setLog);
-      setResult((old) => { (old && old.items || []).forEach((i) => URL.revokeObjectURL(i.url)); return r; });
+      setResult((old) => { (old && old.items || []).forEach((i) => URL.revokeObjectURL(i.url)); return {...r, task, files: list, opts: o}; });
       setLog(r.msg + (list.length < files.length ? ` Free batch is ${FREE_FILES} files, so the first ${FREE_FILES} were used.` : ''));
     } catch (e) { setLog(friendly(e)); }
     setBusy(false);
@@ -150,7 +186,7 @@ export default function App() {
                 <HStack gap={2} wrap="wrap">{[[500, 'Thumbnail 500'], [1200, 'Web 1200'], [2000, 'Documents 2000']].map(([v, l]) => <Button key={v} label={l} size="sm" variant={size === v ? 'primary' : 'secondary'} onClick={() => setSize(v)} />)}</HStack>
                 {size < 1000 && <Text type="supporting" color="warning">Small size: text in documents, screenshots and photos of paper will be hard to read. Use 1600 px or more, and PNG, for anything with text.</Text>}
                 <Choice value={square} set={setSquare} options={[['fit', 'Keep proportions'], ['square', 'Square crop']]} />
-                <Choice value={format} set={setFormat} options={[['jpg', 'JPEG (smaller)'], ['png', 'PNG (sharp text)']]} />
+                <Choice value={format} set={setFormat} options={[['jpg', 'JPEG (smaller)'], ['png', 'PNG (sharp text)'], ['webp', 'WebP (smallest)']]} />
                 <NumberInput label="JPEG quality, %" value={quality} onChange={(v) => v && setQuality(Math.min(100, Math.max(30, v)))} />
               </VStack>
             ) : task === 'shrink' ? (

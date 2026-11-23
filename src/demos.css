@@ -106,3 +106,13 @@
 .picked-wait{font-size:12px;opacity:.6}
 .picked-info{flex:1;min-width:0;display:flex;flex-direction:column}
 .picked-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+
+/* download matrix */
+.matrix-wrap{padding:12px;border:1px solid color-mix(in srgb,currentColor 16%,transparent);border-radius:8px}
+.matrix{display:grid;gap:6px;align-items:center;overflow-x:auto}
+.mx-h{font-size:12px;font-weight:600;opacity:.7;text-align:center}
+.mx-r{font-size:13px}
+.mx-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:40px;padding:6px 8px;font:inherit;font-size:13px;color:inherit;background:transparent;border:1px solid color-mix(in srgb,currentColor 28%,transparent);border-radius:6px;cursor:pointer}
+.mx-cell:hover:not(:disabled){background:color-mix(in srgb,currentColor 8%,transparent)}
+.mx-cell:disabled{opacity:.55;cursor:progress}
+.mx-cell small{font-size:11px;opacity:.65}
