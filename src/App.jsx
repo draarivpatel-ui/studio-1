@@ -81,7 +81,7 @@ export default function App() {
         {log && <Text color="secondary">{log}</Text>}
         {unlocked
           ? <Banner type="success" description={<>Unlocked: no limits and no mark. To unlock another browser or device, <a href={`${location.origin}${location.pathname}?unlocked=${UNLOCK_TOKEN}`}>bookmark this link</a>.</>} />
-          : <Banner type="info" description={<>Free: {FREE_FILES} files per batch and a small "{MARK}" mark. <a href={PAYMENT_LINK}>Unlock for good</a>: one payment, no account.</>} />}
+          : <Banner type="info" description={<>Free: {FREE_FILES} files per batch and a small "{MARK}" mark.{PAYMENT_LINK.includes('REPLACE_ME') ? '' : <> <a href={PAYMENT_LINK}>Unlock for good</a>: one payment, no account.</>}</>} />}
       </VStack>
     </main>
   );
