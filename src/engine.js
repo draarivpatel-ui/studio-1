@@ -136,24 +136,36 @@ export async function pdfBatch(files, o, say) {
       // and keep the original only if even the lowest step is bigger.
       const src = await pdfjsLib.getDocument({data: await f.arrayBuffer()}).promise;
       const tiers = o.flatten ? [[2, o.quality / 100]] : shrinkTiers(o.quality);
+      const total = src.numPages;
+      const LANES = Math.max(2, Math.min(4, (navigator.hardwareConcurrency || 4) - 1));
       for (let t = 0; t < tiers.length && !blob; t++) {
         const [scale, q] = tiers[t];
-        const out = await PDFDocument.create(); let rendered = 0, tooBig = false;
-        for (let n = 1; n <= src.numPages; n++) {
-          say(`PDF ${i} of ${files.length}: page ${n} of ${src.numPages}${t ? ' (less detail)' : ''}…`);
-          // After 3 pages, if the whole file would come out bigger than the original, stop this step.
-          if (!o.flatten && n === 4 && rendered / 3 * src.numPages > f.size) { tooBig = true; break; }
-          const pg = await src.getPage(n), vp = pg.getViewport({scale});
-          const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
-          await pg.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
-          const jpg = await new Promise((r) => c.toBlob(r, 'image/jpeg', q));
-          rendered += jpg.size;
-          const img = await out.embedJpg(await jpg.arrayBuffer());
-          const base = pg.getViewport({scale: 1}); const p = out.addPage([base.width, base.height]);
-          p.drawImage(img, {x: 0, y: 0, width: base.width, height: base.height});
+        const out = await PDFDocument.create();
+        // Render several pages at once (each lane has its own canvas), then embed in order.
+        const jpgs = new Array(total + 1); let next = 1, done = 0, rendered = 0, stop = false;
+        await Promise.all(Array.from({length: LANES}, async () => {
+          const c = document.createElement('canvas');
+          while (!stop && next <= total) {
+            const n = next++;
+            const pg = await src.getPage(n), vp = pg.getViewport({scale});
+            c.width = vp.width; c.height = vp.height;
+            await pg.render({canvasContext: c.getContext('2d', {alpha: false}), viewport: vp}).promise;
+            const jpg = await new Promise((r) => c.toBlob(r, 'image/jpeg', q));
+            const base = pg.getViewport({scale: 1}); pg.cleanup();
+            jpgs[n] = {jpg, w: base.width, h: base.height}; rendered += jpg.size; done++;
+            say(`PDF ${i} of ${files.length}: page ${done} of ${total}${t ? ' (less detail)' : ''}…`);
+            // After 3 pages, if the whole file would come out bigger than the original, stop this step.
+            if (!o.flatten && done === 3 && rendered / 3 * total > f.size) stop = true;
+          }
           c.width = c.height = 0;
+        }));
+        if (stop) continue;
+        for (let n = 1; n <= total; n++) {
+          const {jpg, w, h} = jpgs[n]; jpgs[n] = null;
+          const img = await out.embedJpg(await jpg.arrayBuffer());
+          out.addPage([w, h]).drawImage(img, {x: 0, y: 0, width: w, height: h});
+          if (n % 20 === 0) await new Promise((r) => setTimeout(r));
         }
-        if (tooBig) continue;
         await watermarkDoc(out, o.mark, o.unlocked);
         const made = await pdfBlob(out);
         if (!o.flatten && made.size >= f.size) continue;
