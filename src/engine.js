@@ -33,7 +33,7 @@ function stamp(g, w, h, text, unlocked) {
 }
 
 export async function photoBatch(files, o, say) {
-  const zip = new JSZip(); let before = 0, after = 0, i = 0;
+  const zip = new JSZip(); const items = []; let before = 0, after = 0, i = 0;
   for (const f of files) {
     say(`Photo ${++i} of ${files.length}…`);
     const bmp = await createImageBitmap(f);
@@ -45,9 +45,10 @@ export async function photoBatch(files, o, say) {
     stamp(g, w, h, o.mark, o.unlocked);
     const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', o.quality / 100));
     before += f.size; after += blob.size;
-    zip.file(f.name.replace(/\.[^.]+$/, '') + '.jpg', blob);
+    const nm = f.name.replace(/\.[^.]+$/, '') + '.jpg';
+    zip.file(nm, blob); items.push({name: nm, kind: 'image', url: URL.createObjectURL(blob), before: f.size, after: blob.size});
   }
-  return {blob: await zip.generateAsync({type: 'blob'}), name: 'photos.zip', msg: `Done. ${files.length} photo(s), ${kb(before)} → ${kb(after)}.`};
+  return {blob: await zip.generateAsync({type: 'blob'}), name: 'photos.zip', items, msg: `Done. ${files.length} photo(s), ${kb(before)} → ${kb(after)}.`};
 }
 
 async function watermarkDoc(doc, text, unlocked) {
@@ -68,9 +69,9 @@ export async function pdfBatch(files, o, say) {
       (await out.copyPages(d, d.getPageIndices())).forEach((p) => out.addPage(p));
     }
     await watermarkDoc(out, o.mark, o.unlocked);
-    return {blob: await pdfBlob(out), name: 'merged.pdf', msg: `Merged ${files.length} PDF(s) into ${out.getPageCount()} pages.`};
+    return {blob: await pdfBlob(out), name: 'merged.pdf', items: [{name: 'merged.pdf', kind: 'pdf', url: URL.createObjectURL(await pdfBlob(out))}], msg: `Merged ${files.length} PDF(s) into ${out.getPageCount()} pages.`};
   }
-  const zip = new JSZip(); const outs = []; let before = 0, after = 0, i = 0;
+  const zip = new JSZip(); const outs = []; const items = []; let before = 0, after = 0, i = 0;
   for (const f of files) {
     say(`PDF ${++i} of ${files.length}…`); before += f.size;
     let out;
@@ -93,10 +94,10 @@ export async function pdfBatch(files, o, say) {
       await src.destroy();
     }
     await watermarkDoc(out, o.mark, o.unlocked);
-    const b = await pdfBlob(out); after += b.size; outs.push([f.name, b]);
+    const b = await pdfBlob(out); after += b.size; outs.push([f.name, b]); items.push({name: f.name, kind: 'pdf', url: URL.createObjectURL(b), before: f.size, after: b.size});
   }
   const msg = `Done. ${kb(before)} → ${kb(after)}.`;
-  if (outs.length === 1) return {blob: outs[0][1], name: outs[0][0], msg};
+  if (outs.length === 1) return {blob: outs[0][1], name: outs[0][0], items, msg};
   outs.forEach(([n, b]) => zip.file(n, b));
-  return {blob: await zip.generateAsync({type: 'blob'}), name: 'pdfs.zip', msg};
+  return {blob: await zip.generateAsync({type: 'blob'}), name: 'pdfs.zip', items, msg};
 }
