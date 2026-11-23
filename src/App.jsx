@@ -121,7 +121,7 @@ const RESOURCES = [['Source', 'https://github.com/flisk-sh/studio'], ['Flisk', '
 
 export default function App() {
   const unlocked = unlockedAtLoad;
-  const [task, setTask] = useState('photo');
+  const [task, setTask] = useState(() => { const h = location.hash.slice(1); return ['photo', 'merge', 'shrink', 'mark'].includes(h) ? h : 'photo'; });
   const mode = task === 'photo' ? 'photo' : 'pdf', action = task;
   const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);

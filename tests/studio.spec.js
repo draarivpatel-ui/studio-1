@@ -91,3 +91,19 @@ test.describe('pdf', () => {
     expect(Object.keys(zip.files).sort()).toEqual(['same-2.pdf', 'same.pdf']);
   });
 });
+
+test.describe('landing pages', () => {
+  for (const [slug, hash, heading] of [['resize-photos', 'photo', 'Photos'], ['merge-pdfs', 'merge', 'Merge PDFs'], ['shrink-pdf', 'shrink', 'Shrink PDFs'], ['watermark-pdf', 'mark', 'Watermark PDFs']]) {
+    test(`/${slug}/ has a heading and its button opens ${heading}`, async ({page}) => {
+      await page.goto(`/${slug}/`);
+      await expect(page.locator('h1')).toBeVisible();
+      await expect(page).toHaveTitle(/Flisk Studio/);
+      await page.locator('a.cta').first().click();
+      await expect(page.locator('.task-head h2')).toHaveText(heading);
+    });
+  }
+  test('sitemap and robots exist', async ({request}) => {
+    expect((await request.get('/sitemap.xml')).ok()).toBe(true);
+    expect(await (await request.get('/robots.txt')).text()).toContain('Sitemap: https://studio.flisk.si/sitemap.xml');
+  });
+});
