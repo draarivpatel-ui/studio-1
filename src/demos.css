@@ -1,0 +1,71 @@
+/* Scenes in the style of Flisk Chat's + menu (web/src/app.css there). 5 s timeline, spring easing, SVG and CSS only. */
+.demo{--e:cubic-bezier(.34,1.56,.64,1);flex:none;overflow:visible;color:currentColor;border-radius:4px;max-width:100%}
+.demo *{transform-box:fill-box}
+.demo .bg{fill:Canvas;stroke:currentColor;stroke-opacity:.16}
+.demo path,.demo circle,.demo rect.zone,.demo .big rect,.demo .sm rect,.demo .stamp rect{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.demo .cur{fill:currentColor;stroke:Canvas;stroke-width:1;opacity:0}
+.demo .pt{stroke-opacity:.25;stroke-dasharray:3 3}
+.demo .ok{opacity:0;transform-origin:center;animation:aok 5s var(--e) infinite}
+.demo .tk{stroke-dasharray:10;stroke-dashoffset:10;animation:atk 5s ease-out infinite}
+@keyframes aok{0%,70%{opacity:0;scale:0}76%,88%{opacity:1;scale:1}96%,100%{opacity:0}}
+@keyframes atk{0%,74%{stroke-dashoffset:10}82%,88%{stroke-dashoffset:0}96%,100%{stroke-dashoffset:10}}
+
+/* photo: one big picture, a batch of small squares pops out */
+.demo-photo .big{transform-origin:center;animation:pbig 5s var(--e) infinite}
+@keyframes pbig{0%,10%{transform:scale(1);opacity:1}30%{transform:scale(.94);opacity:.55}80%{transform:scale(.94);opacity:.55}100%{transform:scale(1);opacity:1}}
+.demo-photo .sm{opacity:0;transform-origin:center;animation:psm 5s var(--e) infinite}
+@keyframes psm{0%,32%{opacity:0;scale:.2}42%{opacity:1;scale:1}86%{opacity:1;scale:1}95%,100%{opacity:0;scale:1}}
+.demo-photo .cur{animation:pc 5s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes pc{0%{opacity:0;transform:translate(40px,46px)}8%{opacity:1;transform:translate(44px,40px)}18%{transform:translate(44px,40px) scale(.9)}30%{opacity:1;transform:translate(110px,36px) scale(.9)}40%,100%{opacity:0;transform:translate(120px,40px)}}
+
+/* merge: two documents slide together into one */
+.demo-merge .dc{transform-origin:center}
+.demo-merge .da{animation:mda 5s var(--e) infinite}.demo-merge .db{animation:mdb 5s var(--e) infinite}
+@keyframes mda{0%,14%{transform:translate(0,0);opacity:1}36%{transform:translate(44px,0);opacity:1}42%,100%{transform:translate(44px,0);opacity:0}}
+@keyframes mdb{0%,14%{transform:translate(0,0);opacity:1}36%{transform:translate(-14px,0);opacity:1}42%,100%{transform:translate(-14px,0);opacity:0}}
+.demo-merge .one{opacity:0;transform-origin:center;animation:mone 5s var(--e) infinite}
+@keyframes mone{0%,36%{opacity:0;scale:.6}46%{opacity:1;scale:1.06}52%,88%{opacity:1;scale:1}96%,100%{opacity:0;scale:1}}
+.demo-merge .badge{fill:currentColor;fill-opacity:.9}.demo-merge .two{stroke:Canvas;stroke-width:1.4}
+.demo-merge .cur{animation:mc 5s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes mc{0%{opacity:0;transform:translate(70px,48px)}8%{opacity:1;transform:translate(72px,40px)}14%{transform:translate(72px,40px) scale(.9)}34%{opacity:1;transform:translate(96px,40px) scale(.9)}42%,100%{opacity:0;transform:translate(104px,44px)}}
+
+/* shrink: a big document gets small, the size bar follows */
+.demo-shrink .bigdoc{transform-origin:left center;animation:sbig 5s var(--e) infinite}
+@keyframes sbig{0%,16%{transform:scale(1)}40%,84%{transform:scale(.55)}100%{transform:scale(1)}}
+.demo-shrink .trk{fill:currentColor;stroke:none;opacity:.12}
+.demo-shrink .bar{fill:currentColor;stroke:none;opacity:.8;transform-origin:left center;animation:sbar 5s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes sbar{0%,16%{transform:scaleX(1)}40%,84%{transform:scaleX(.28)}100%{transform:scaleX(1)}}
+.demo-shrink .arr{stroke-opacity:.5;animation:sarr 5s var(--e) infinite;transform-origin:center}
+@keyframes sarr{0%,16%{opacity:0;translate:0 -6px}30%,84%{opacity:1;translate:0 0}100%{opacity:0}}
+.demo-shrink .lbl{fill:currentColor;stroke:none;opacity:.5;transform-origin:left center;animation:sbar 5s steps(10,end) infinite}
+
+/* mark: a stamp lands on the page, lines of text follow */
+.demo-mark .stamp{transform-origin:center;opacity:0;animation:kstamp 5s var(--e) infinite}
+@keyframes kstamp{0%,30%{opacity:0;scale:2;rotate:-12deg}40%{opacity:1;scale:.94;rotate:-12deg}46%,86%{opacity:1;scale:1;rotate:-12deg}96%,100%{opacity:0;scale:1;rotate:-12deg}}
+.demo-mark .rip{opacity:0;transform-origin:center;animation:krip 5s ease-out infinite}
+@keyframes krip{0%,38%{opacity:0;scale:.4}42%{opacity:.8;scale:.6}58%,100%{opacity:0;scale:2.2}}
+.demo-mark .ln{fill:currentColor;stroke:none;opacity:.8;transform-origin:left center;transform:scaleX(0);animation:kln 5s steps(14,end) infinite}
+.demo-mark .l2{animation-delay:.2s}.demo-mark .l3{animation-delay:.4s}
+@keyframes kln{0%,52%{transform:scaleX(0)}70%,90%{transform:scaleX(1);opacity:.8}97%,100%{transform:scaleX(1);opacity:0}}
+.demo-mark .cur{animation:kc 5s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes kc{0%{opacity:0;transform:translate(110px,46px)}8%{opacity:1;transform:translate(100px,40px)}22%{transform:translate(64px,30px) scale(.9)}34%{opacity:1;transform:translate(62px,32px) scale(.8)}44%,100%{opacity:0;transform:translate(70px,40px)}}
+
+/* drop: chat's attach-files scene */
+.demo-drop .fc{transform:translate(14px,16px);animation:afc 5s cubic-bezier(.4,0,.2,1) infinite}
+.demo-drop .cur{animation:ac 5s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes afc{0%{opacity:0;transform:translate(14px,24px) scale(.9)}6%{opacity:1;transform:translate(14px,16px) scale(1)}12%{transform:translate(14px,14px) scale(1.08) rotate(-3deg)}42%{transform:translate(132px,16px) scale(1.08) rotate(3deg)}48%{transform:translate(138px,20px) scale(.55) rotate(0);opacity:1}54%,100%{opacity:0}}
+@keyframes ac{0%{opacity:0;transform:translate(24px,40px)}6%{opacity:1;transform:translate(28px,40px)}12%{transform:translate(28px,34px) scale(.9)}42%{transform:translate(146px,34px) scale(.9)}50%{opacity:1;transform:translate(150px,44px) scale(1)}60%,100%{opacity:0;transform:translate(160px,52px)}}
+.demo-drop .zone{stroke-dasharray:4 4;stroke-opacity:.45;transform-origin:center;animation:azone 5s var(--e) infinite}
+@keyframes azone{0%,28%{stroke-opacity:.35;transform:scale(1)}40%,48%{stroke-opacity:1;transform:scale(1.04)}56%,100%{stroke-opacity:.35;transform:scale(1)}}
+.demo-drop .plus{stroke-opacity:.45;animation:aplus 5s ease infinite}@keyframes aplus{0%,44%{opacity:1}50%,100%{opacity:0}}
+.demo-drop .chip{opacity:0;transform-origin:center;animation:achip 5s var(--e) infinite}.demo-drop .chip path{stroke-width:1.4}
+@keyframes achip{0%,50%{opacity:0;scale:.2}58%{opacity:1;scale:1}88%{opacity:1;scale:1}96%,100%{opacity:0;scale:1}}
+
+@media (prefers-reduced-motion:reduce){.demo *{animation-iteration-count:1!important}.demo .ln,.demo .bar,.demo .chip,.demo .sm,.demo .one,.demo .stamp{transform:none;opacity:.85;scale:1}.demo .tk{stroke-dashoffset:0}.demo .ok{opacity:1}}
+
+/* task rows */
+.task-row{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;padding:10px 12px;border:1px solid color-mix(in srgb,currentColor 16%,transparent);border-radius:12px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.task-row.on{border-color:currentColor}
+.task-row.static{cursor:default;border-style:dashed}
+.task-copy{display:flex;flex-direction:column;min-width:0}
+@media (max-width:560px){.task-row{flex-direction:column;align-items:flex-start}.task-row .demo{width:100%;height:auto}}
