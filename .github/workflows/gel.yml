@@ -1,0 +1,18 @@
+name: GEL
+on:
+  pull_request:
+  # the merge queue only runs workflows that listen for merge_group; GEL is a required check there
+  merge_group:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: gel-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  gel:
+    permissions: { contents: read, checks: read, pull-requests: read }
+    uses: flisk-sh/gel/.github/workflows/gel.yml@b46390e8ab7ffaa4921ab5c9bff5cc0605fee925 # v1.14.0
+    with: { gel_ref: b46390e8ab7ffaa4921ab5c9bff5cc0605fee925 }
