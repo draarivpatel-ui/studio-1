@@ -107,6 +107,12 @@ async function watermarkDoc(doc, text, unlocked) {
 }
 const pdfBlob = async (d) => new Blob([await d.save()], {type: 'application/pdf'});
 
+// Detail steps for Shrink: the first is what the quality asks for, then less and less until the file is smaller than the original.
+export function shrinkTiers(quality) {
+  const q = quality / 100, scale = q >= 0.8 ? 2 : q >= 0.55 ? 1.5 : q >= 0.4 ? 1.2 : 1;
+  return [[scale, q], ...[[1.5, 0.6], [1.2, 0.45], [1, 0.35]].filter(([s, qq]) => s < scale || (s === scale && qq < q))];
+}
+
 export async function pdfBatch(files, o, say) {
   if (o.action === 'merge') {
     const out = await PDFDocument.create();
@@ -117,43 +123,53 @@ export async function pdfBatch(files, o, say) {
     await watermarkDoc(out, o.mark, o.unlocked);
     return {blob: await pdfBlob(out), name: 'merged.pdf', items: [{name: 'merged.pdf', kind: 'pdf', url: URL.createObjectURL(await pdfBlob(out))}], msg: `Merged ${files.length} PDF(s) into ${out.getPageCount()} pages.`};
   }
-  const zip = new JSZip(); const outs = []; const items = []; const used = new Set(); let kept = 0; let before = 0, after = 0, i = 0;
+  const zip = new JSZip(); const outs = []; const items = []; const used = new Set(); let kept = 0, lowered = 0; let before = 0, after = 0, i = 0;
   for (const f of files) {
     say(`PDF ${++i} of ${files.length}…`); before += f.size;
-    let out, srcPages = 0;
-    if (o.action === 'mark') out = await PDFDocument.load(await f.arrayBuffer(), {ignoreEncryption: true});
-    else {
-      // Shrink: render each page to JPEG and rebuild. This strips hidden text and metadata; text is no longer selectable.
+    let blob;
+    if (o.action === 'mark') {
+      const out = await PDFDocument.load(await f.arrayBuffer(), {ignoreEncryption: true});
+      await watermarkDoc(out, o.mark, o.unlocked); blob = await pdfBlob(out);
+    } else {
+      // Shrink: redraw each page as a JPEG. That strips hidden text and metadata; text is no longer selectable.
+      // If that would come out bigger than the original (already-compressed scans, text PDFs), try less detail, step by step,
+      // and keep the original only if even the lowest step is bigger.
       const src = await pdfjsLib.getDocument({data: await f.arrayBuffer()}).promise;
-      out = await PDFDocument.create(); srcPages = src.numPages;
-      let rendered = 0;
-      for (let n = 1; n <= src.numPages; n++) {
-        say(`PDF ${i} of ${files.length}: page ${n} of ${src.numPages}…`);
-        // After 3 pages, if the whole file would come out bigger than the original, stop: the original is kept below.
-        if (!o.flatten && n === 4 && rendered / 3 * src.numPages > f.size) break;
-        const pg = await src.getPage(n), vp = pg.getViewport({scale: 2});
-        const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
-        await pg.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
-        const jpg = await new Promise((r) => c.toBlob(r, 'image/jpeg', o.quality / 100));
-        rendered += jpg.size;
-        const img = await out.embedJpg(await jpg.arrayBuffer());
-        const base = pg.getViewport({scale: 1}); const p = out.addPage([base.width, base.height]);
-        p.drawImage(img, {x: 0, y: 0, width: base.width, height: base.height});
-        c.width = c.height = 0;
+      const tiers = o.flatten ? [[2, o.quality / 100]] : shrinkTiers(o.quality);
+      for (let t = 0; t < tiers.length && !blob; t++) {
+        const [scale, q] = tiers[t];
+        const out = await PDFDocument.create(); let rendered = 0, tooBig = false;
+        for (let n = 1; n <= src.numPages; n++) {
+          say(`PDF ${i} of ${files.length}: page ${n} of ${src.numPages}${t ? ' (less detail)' : ''}…`);
+          // After 3 pages, if the whole file would come out bigger than the original, stop this step.
+          if (!o.flatten && n === 4 && rendered / 3 * src.numPages > f.size) { tooBig = true; break; }
+          const pg = await src.getPage(n), vp = pg.getViewport({scale});
+          const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+          await pg.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
+          const jpg = await new Promise((r) => c.toBlob(r, 'image/jpeg', q));
+          rendered += jpg.size;
+          const img = await out.embedJpg(await jpg.arrayBuffer());
+          const base = pg.getViewport({scale: 1}); const p = out.addPage([base.width, base.height]);
+          p.drawImage(img, {x: 0, y: 0, width: base.width, height: base.height});
+          c.width = c.height = 0;
+        }
+        if (tooBig) continue;
+        await watermarkDoc(out, o.mark, o.unlocked);
+        const made = await pdfBlob(out);
+        if (!o.flatten && made.size >= f.size) continue;
+        blob = made; if (t > 0) lowered++;
       }
       await src.destroy();
+      if (!blob) {
+        const keep = await PDFDocument.load(await f.arrayBuffer(), {ignoreEncryption: true});
+        await watermarkDoc(keep, o.mark, o.unlocked); blob = await pdfBlob(keep); kept++;
+      }
     }
-    await watermarkDoc(out, o.mark, o.unlocked);
-    let b = await pdfBlob(out);
-    if (o.action === 'shrink' && !o.flatten && (b.size >= f.size || out.getPageCount() < srcPages)) {
-      // Text PDFs are already small; turning pages into pictures would make them bigger. Keep the original.
-      const keep = await PDFDocument.load(await f.arrayBuffer(), {ignoreEncryption: true});
-      await watermarkDoc(keep, o.mark, o.unlocked); b = await pdfBlob(keep); kept++;
-    }
+    const b = blob;
     const nm = unique(f.name, used);
     after += b.size; outs.push([nm, b]); items.push({name: nm, kind: 'pdf', url: URL.createObjectURL(b), before: f.size, after: b.size});
   }
-  const msg = `Done. ${kb(before)} → ${kb(after)}.` + (kept ? ` ${kept} file(s) were already small (text PDFs), so they were left as they were.` : '');
+  const msg = `Done. ${kb(before)} → ${kb(after)}.` + (lowered ? ` ${lowered} file(s) needed less detail than you asked for to get smaller.` : '') + (kept ? ` ${kept} file(s) could not be made smaller (they are already compact), so they were left as they were.` : '');
   if (outs.length === 1) return {blob: outs[0][1], name: outs[0][0], items, msg};
   outs.forEach(([n, b]) => zip.file(n, b));
   return {blob: await zip.generateAsync({type: 'blob'}), name: 'pdfs.zip', items, msg};
