@@ -1,6 +1,6 @@
 // All file work runs in the browser. Nothing is uploaded.
 import JSZip from 'jszip';
-import {PDFDocument, StandardFonts, rgb, degrees} from 'pdf-lib';
+import {PDFDocument, PDFName, StandardFonts, rgb, degrees} from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist/build/pdf.js';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url';
 
@@ -123,7 +123,7 @@ export async function pdfBatch(files, o, say) {
     await watermarkDoc(out, o.mark, o.unlocked);
     return {blob: await pdfBlob(out), name: 'merged.pdf', items: [{name: 'merged.pdf', kind: 'pdf', url: URL.createObjectURL(await pdfBlob(out))}], msg: `Merged ${files.length} PDF(s) into ${out.getPageCount()} pages.`};
   }
-  const zip = new JSZip(); const outs = []; const items = []; const used = new Set(); let kept = 0, lowered = 0; let before = 0, after = 0, i = 0;
+  const zip = new JSZip(); const outs = []; const items = []; const used = new Set(); let kept = 0, lowered = 0, repacked = 0; let before = 0, after = 0, i = 0;
   for (const f of files) {
     say(`PDF ${++i} of ${files.length}…`); before += f.size;
     let blob;
@@ -173,15 +173,21 @@ export async function pdfBatch(files, o, say) {
       }
       await src.destroy();
       if (!blob) {
-        const keep = await PDFDocument.load(await f.arrayBuffer(), {ignoreEncryption: true});
-        await watermarkDoc(keep, o.mark, o.unlocked); blob = await pdfBlob(keep); kept++;
+        // Last step: keep the text selectable, but repack the file (object streams) and drop metadata. Use it only if it is smaller.
+        const keep = await PDFDocument.load(await f.arrayBuffer(), {ignoreEncryption: true, updateMetadata: false});
+        keep.context.trailerInfo.Info = undefined;
+        keep.catalog.delete(PDFName.of('Metadata'));
+        await watermarkDoc(keep, o.mark, o.unlocked);
+        const packed = new Blob([await keep.save({useObjectStreams: true, updateFieldAppearances: false})], {type: 'application/pdf'});
+        if (packed.size < f.size) { blob = packed; repacked++; }
+        else { blob = !o.mark && o.unlocked ? f : await pdfBlob(keep); kept++; }
       }
     }
     const b = blob;
     const nm = unique(f.name, used);
     after += b.size; outs.push([nm, b]); items.push({name: nm, kind: 'pdf', url: URL.createObjectURL(b), before: f.size, after: b.size});
   }
-  const msg = `Done. ${kb(before)} → ${kb(after)}.` + (lowered ? ` ${lowered} file(s) needed less detail than you asked for to get smaller.` : '') + (kept ? ` ${kept} file(s) could not be made smaller (they are already compact), so they were left as they were.` : '');
+  const msg = `Done. ${kb(before)} → ${kb(after)}.` + (lowered ? ` ${lowered} file(s) needed less detail than you asked for to get smaller.` : '') + (repacked ? ` ${repacked} text PDF(s) were only repacked (text stays selectable), so they shrink little.` : '') + (kept ? ` ${kept} file(s) could not be made smaller (they are already compact), so they were left as they were.` : '');
   if (outs.length === 1) return {blob: outs[0][1], name: outs[0][0], items, msg};
   outs.forEach(([n, b]) => zip.file(n, b));
   return {blob: await zip.generateAsync({type: 'blob'}), name: 'pdfs.zip', items, msg};
