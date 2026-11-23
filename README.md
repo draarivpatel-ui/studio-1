@@ -10,7 +10,7 @@ Unlock: one Stripe Payment Link, no accounts, no database.
 
 ## Unlock
 
-Set `PAYMENT_LINK` and the redirect in `public/index.html`. In Stripe, set the Payment Link's
+Set `PAYMENT_LINK` and the redirect in `src/engine.js`. In Stripe, set the Payment Link's
 after-payment redirect to `https://<host>/?unlocked=<UNLOCK_TOKEN>`. The page stores the unlock in
 `localStorage`. This is an honour-system gate (anyone can read the token from the page source); it
 suits a $9-$19 tool, not a licence you must protect.
@@ -19,3 +19,10 @@ suits a $9-$19 tool, not a licence you must protect.
 
     bunx wrangler@4 dev      # local preview
     bunx wrangler@4 deploy   # publish
+
+## Build
+
+React 19 with Meta Astryx (`@astryxdesign/core`), built by Vite into `dist/`.
+
+    bun install \&\& bun run build
+
