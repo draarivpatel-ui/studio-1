@@ -44,5 +44,37 @@
     "evidence": "bench/north-star.mjs",
     "measure": "bun bench/north-star.mjs",
     "max_age_days": 90
+  },
+  "brief": {
+    "what": {
+      "answer": "shrinks photos and PDFs in the browser",
+      "metric": "times smaller 25 photos get at Web 1200",
+      "target": 3
+    },
+    "who": {
+      "answer": "people who must send or upload big photos and PDFs",
+      "metric": "visitors in the last 30 days",
+      "target": 100
+    },
+    "why": {
+      "answer": "files are too big to email and should not be uploaded to a stranger's server",
+      "metric": "average minutes per visit",
+      "target": 3
+    },
+    "how": {
+      "answer": "everything runs on the visitor's own computer, with no server for files",
+      "metric": "browser tests that pass in CI",
+      "target": 20
+    },
+    "where": {
+      "answer": "live at studio.flisk.si and through the shared Flisk bar",
+      "metric": "visits in the last 30 days",
+      "target": 50
+    },
+    "when": {
+      "answer": "each time a photo or PDF is too big to send",
+      "metric": "visits per visitor",
+      "target": 3
+    }
   }
 }
