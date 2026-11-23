@@ -1,4 +1,6 @@
 {
+  "status": "active",
+  "owner": "@odykyi",
   "mode": "block",
   "guards": {
     "secret-scan": "block",
