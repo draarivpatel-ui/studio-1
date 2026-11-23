@@ -65,6 +65,7 @@ export async function pdfThumb(file) {
   await src.destroy(); return out;
 }
 
+const FORMATS = {jpg: {mime: 'image/jpeg', ext: '.jpg'}, png: {mime: 'image/png', ext: '.png'}, webp: {mime: 'image/webp', ext: '.webp'}};
 export async function photoBatch(files, o, say) {
   const zip = new JSZip(); const items = []; const used = new Set(); let before = 0, after = 0, i = 0;
   for (const f of files) {
@@ -73,13 +74,13 @@ export async function photoBatch(files, o, say) {
     let sw = bmp.width, sh = bmp.height, sx = 0, sy = 0, w, h;
     if (o.square) { const s = Math.min(sw, sh); sx = (sw - s) / 2; sy = (sh - s) / 2; sw = sh = s; w = h = Math.min(o.size, s); }
     else { const k = Math.min(1, o.size / Math.max(sw, sh)); w = Math.round(sw * k); h = Math.round(sh * k); }
-    const c = resample(bmp, sx, sy, sw, sh, w, h, o.format !== 'png'); bmp.close();
+    const c = resample(bmp, sx, sy, sw, sh, w, h, o.format === 'jpg'); bmp.close();
     const g = c.getContext('2d');
     stamp(g, w, h, o.mark, o.unlocked);
-    const png = o.format === 'png';
-    const blob = await new Promise((r) => c.toBlob(r, png ? 'image/png' : 'image/jpeg', o.quality / 100));
+    const fmt = FORMATS[o.format] || FORMATS.jpg;
+    const blob = await new Promise((r) => c.toBlob(r, fmt.mime, o.quality / 100));
     before += f.size; after += blob.size;
-    const nm = unique(f.name.replace(/\.[^.]+$/, '') + (png ? '.png' : '.jpg'), used);
+    const nm = unique(f.name.replace(/\.[^.]+$/, '') + fmt.ext, used);
     zip.file(nm, blob); items.push({name: nm, kind: 'image', dims: w + ' × ' + h, url: URL.createObjectURL(blob), before: f.size, after: blob.size});
   }
   return {blob: await zip.generateAsync({type: 'blob'}), name: 'photos.zip', items, msg: `Done. ${files.length} photo(s), ${kb(before)} → ${kb(after)}.`};
@@ -129,7 +130,7 @@ export async function pdfBatch(files, o, say) {
       for (let n = 1; n <= src.numPages; n++) {
         say(`PDF ${i} of ${files.length}: page ${n} of ${src.numPages}…`);
         // After 3 pages, if the whole file would come out bigger than the original, stop: the original is kept below.
-        if (n === 4 && rendered / 3 * src.numPages > f.size) break;
+        if (!o.flatten && n === 4 && rendered / 3 * src.numPages > f.size) break;
         const pg = await src.getPage(n), vp = pg.getViewport({scale: 2});
         const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
         await pg.render({canvasContext: c.getContext('2d'), viewport: vp}).promise;
@@ -144,7 +145,7 @@ export async function pdfBatch(files, o, say) {
     }
     await watermarkDoc(out, o.mark, o.unlocked);
     let b = await pdfBlob(out);
-    if (o.action === 'shrink' && (b.size >= f.size || out.getPageCount() < srcPages)) {
+    if (o.action === 'shrink' && !o.flatten && (b.size >= f.size || out.getPageCount() < srcPages)) {
       // Text PDFs are already small; turning pages into pictures would make them bigger. Keep the original.
       const keep = await PDFDocument.load(await f.arrayBuffer(), {ignoreEncryption: true});
       await watermarkDoc(keep, o.mark, o.unlocked); b = await pdfBlob(keep); kept++;
@@ -156,4 +157,36 @@ export async function pdfBatch(files, o, say) {
   if (outs.length === 1) return {blob: outs[0][1], name: outs[0][0], items, msg};
   outs.forEach(([n, b]) => zip.file(n, b));
   return {blob: await zip.generateAsync({type: 'blob'}), name: 'pdfs.zip', items, msg};
+}
+
+// ---- Download matrix: every task offers many ready-made variants, built on click from the same files and options. ----
+const MARK_ROWS = (o) => {
+  const rows = [];
+  if (o.mark || !o.unlocked) rows.push({id: 'mark', label: 'With watermark', patch: {}});
+  if (o.unlocked) rows.push({id: 'clean', label: o.mark ? 'Without watermark' : 'Clean', patch: {mark: '', unlocked: true}});
+  return rows;
+};
+const cross = (a, b) => a.flatMap((x) => b.map((y) => ({id: x.id + '-' + y.id, label: x.label + ' · ' + y.label, patch: {...x.patch, ...y.patch}})));
+export function matrix(task, o) {
+  const marks = MARK_ROWS(o);
+  if (task === 'photo') {
+    const sizes = [{id: 'sized', label: o.size + ' px', patch: {}}, {id: 'orig', label: 'Original size', patch: {size: Infinity}}];
+    return {rows: cross(sizes, marks), cols: [{id: 'jpg', label: 'JPEG', patch: {format: 'jpg'}}, {id: 'png', label: 'PNG', patch: {format: 'png'}}, {id: 'webp', label: 'WebP', patch: {format: 'webp'}}]};
+  }
+  if (task === 'merge') return {rows: marks, cols: [{id: 'full', label: 'Merged PDF', patch: {}}, {id: 'small', label: 'Smaller file', patch: {post: 60}}, {id: 'tiny', label: 'Smallest file', patch: {post: 35}}]};
+  if (task === 'shrink') return {rows: marks, cols: [{id: 'light', label: 'Light 85%', patch: {quality: 85}}, {id: 'balanced', label: 'Balanced 60%', patch: {quality: 60}}, {id: 'strong', label: 'Strong 35%', patch: {quality: 35}}]};
+  return {rows: marks, cols: [{id: 'pdf', label: 'Watermarked PDF', patch: {}}, {id: 'flat', label: 'Flattened (mark cannot be removed)', patch: {act: 'shrink', flatten: true, quality: 85}}]};
+}
+const withSuffix = (name, slug) => name.replace(/(\.[^.]+)$/, `-${slug}$1`);
+export async function buildVariant(task, files, o, row, col, say) {
+  const oo = {...o, ...row.patch, ...col.patch};
+  let r = task === 'photo' ? await photoBatch(files, oo, say) : await pdfBatch(files, {...oo, action: oo.act || task}, say);
+  r.items.forEach((i) => URL.revokeObjectURL(i.url));
+  if (oo.post) {
+    // Merge, then shrink the merged file. The mark is already on it, so it is not added twice.
+    const merged = new File([r.blob], r.name, {type: 'application/pdf'});
+    r = await pdfBatch([merged], {...oo, action: 'shrink', mark: '', unlocked: true, quality: oo.post}, say);
+    r.items.forEach((i) => URL.revokeObjectURL(i.url));
+  }
+  return {blob: r.blob, name: withSuffix(r.name, `${col.id}-${row.id}`)};
 }
