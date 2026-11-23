@@ -1,0 +1,7 @@
+# Local files studio: static site, everything runs in the visitor's browser. No D1, no secrets.
+# Deploy by hand from this folder: bunx wrangler@4 deploy
+name = "flisk-studio"
+compatibility_date = "2026-11-01"
+
+[assets]
+directory = "./public"
