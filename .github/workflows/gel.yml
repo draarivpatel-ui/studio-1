@@ -3,8 +3,6 @@ on:
   pull_request:
   # the merge queue only runs workflows that listen for merge_group; GEL is a required check there
   merge_group:
-  push:
-    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
