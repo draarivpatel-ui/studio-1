@@ -29,6 +29,30 @@ const TaskRow = ({id, title, text, on, pick}) => (
   </button>
 );
 
+const kbs = (n) => (n / 1024).toFixed(0) + ' KB';
+function Viewer({result, onClose}) {
+  const [open, setOpen] = useState(0);
+  const it = result.items[Math.min(open, result.items.length - 1)];
+  return (
+    <VStack gap={3} className="viewer">
+      <HStack gap={2} align="center" wrap="wrap">
+        <Button label={'Download ' + result.name} variant="primary" size="md" onClick={() => save(result.blob, result.name)} />
+        <Button label="Close" variant="ghost" size="md" onClick={onClose} />
+      </HStack>
+      {result.items.length > 1 && (
+        <div className="thumbs">{result.items.map((x, i) => (
+          <button type="button" key={x.url} className={'thumb' + (i === open ? ' on' : '')} onClick={() => setOpen(i)} title={x.name}>
+            {x.kind === 'image' ? <img src={x.url} alt={x.name} /> : <span className="pdfchip">{x.name}</span>}
+          </button>))}
+        </div>)}
+      <div className="stage">
+        {it.kind === 'image' ? <img src={it.url} alt={it.name} /> : <iframe title={it.name} src={it.url} />}
+      </div>
+      <Text type="supporting" color="secondary">{it.name}{it.before ? ` · ${kbs(it.before)} → ${kbs(it.after)}` : ''}</Text>
+    </VStack>
+  );
+}
+
 export default function App() {
   const unlocked = unlockedAtLoad;
   const [task, setTask] = useState('photo');
@@ -36,13 +60,14 @@ export default function App() {
   const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState('');
+  const [result, setResult] = useState(null);
   const [size, setSize] = useState(1200);
   const [square, setSquare] = useState('fit');
   const [quality, setQuality] = useState(82);
   const [mark, setMark] = useState('');
 
   const onFiles = (v) => setFiles(v ? [].concat(v) : []);
-  const pick = (t) => { setTask(t); setFiles([]); setLog(''); if (t === 'shrink' && quality > 95) setQuality(60); };
+  const pick = (t) => { setTask(t); setFiles([]); setLog(''); setResult(null); if (t === 'shrink' && quality > 95) setQuality(60); };
   const run = async () => {
     let list = files;
     if (!unlocked && list.length > FREE_FILES) { list = list.slice(0, FREE_FILES); }
@@ -50,7 +75,7 @@ export default function App() {
     try {
       const o = {unlocked, mark: mark.trim(), quality, size, square: square === 'square', action};
       const r = mode === 'photo' ? await photoBatch(list, o, setLog) : await pdfBatch(list, o, setLog);
-      save(r.blob, r.name);
+      setResult((old) => { (old && old.items || []).forEach((i) => URL.revokeObjectURL(i.url)); return r; });
       setLog(r.msg + (list.length < files.length ? ` Free batch is ${FREE_FILES} files, so the first ${FREE_FILES} were used.` : ''));
     } catch (e) { setLog('Failed: ' + (e && e.message || e)); }
     setBusy(false);
@@ -79,6 +104,7 @@ export default function App() {
         <TextInput label="Watermark text (optional)" value={mark} onChange={setMark} />
         <Button label={busy ? 'Working…' : 'Process'} variant="primary" size="lg" isDisabled={busy || !files.length} onClick={run} />
         {log && <Text color="secondary">{log}</Text>}
+        {result && <Viewer result={result} onClose={() => setResult(null)} />}
         {unlocked
           ? <Banner type="success" description={<>Unlocked: no limits and no mark. To unlock another browser or device, <a href={`${location.origin}${location.pathname}?unlocked=${UNLOCK_TOKEN}`}>bookmark this link</a>.</>} />
           : <Banner type="info" description={<>Free: {FREE_FILES} files per batch and a small "{MARK}" mark.{PAYMENT_LINK.includes('REPLACE_ME') ? '' : <> <a href={PAYMENT_LINK}>Unlock for good</a>: one payment, no account.</>}</>} />}
