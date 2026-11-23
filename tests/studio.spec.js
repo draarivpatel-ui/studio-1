@@ -2,16 +2,15 @@ import {test, expect} from '@playwright/test';
 import JSZip from 'jszip';
 import {give, task, process, done, setSize} from './helpers.js';
 
-test.beforeEach(async ({page}) => { await page.goto('/'); });
+// The Flisk bar and analytics load from other sites; the tests do not depend on them.
+test.beforeEach(async ({page}) => { await page.route(/flisk\.(si|sh)\//, (r) => r.abort()); await page.goto('/'); });
 const caption = (page) => page.locator('.viewer').getByText(/ · \d+ × \d+ px/);
 
 test.describe('layout', () => {
-  test('tasks switch and the from-Flisk menu opens and closes', async ({page}) => {
+  test('tasks switch from the side panel', async ({page}) => {
     await expect(page.locator('.task-head h2')).toHaveText('Photos');
     await task(page, 'Merge PDFs'); await expect(page.locator('.task-head h2')).toHaveText('Merge PDFs');
-    await page.getByRole('button', {name: /Flisk/}).first().click();
-    await expect(page.getByRole('menuitem', {name: 'Chat'})).toBeVisible();
-    await page.keyboard.press('Escape'); await expect(page.getByRole('menuitem', {name: 'Chat'})).toHaveCount(0);
+    await expect(page.locator('.side-item.on')).toContainText('Merge PDFs');
   });
   test('no horizontal scroll on a phone', async ({page}) => {
     await page.setViewportSize({width: 375, height: 812}); await page.reload();
