@@ -1,7 +1,7 @@
 // Starts the real server over stdio and calls each tool, the way an agent would.
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp, writeFile, readFile, readdir} from 'node:fs/promises';
+import {mkdtemp, writeFile, readFile, readdir, rm, symlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join, dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -38,6 +38,30 @@ test('resize: size, orientation, transparent becomes white, names not overwritte
   assert.match(again[0].output, /land-2\.jpg$/); assert.equal((await readdir(out)).length, 4);
   const sq = json(await c.callTool({name: 'resize_photos', arguments: {paths: [land], outDir: out, size: 500, square: true, watermark: 'Конфіденційно', format: 'png'}}));
   assert.deepEqual([sq[0].width, sq[0].height], [500, 500]); await c.close();
+});
+
+test('resize: overwrite replaces an output without touching any batch input', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'studio-'));
+  t.after(() => rm(dir, {recursive: true, force: true}));
+  const c = await connect();
+  t.after(() => c.close());
+  const photo = join(dir, 'photo.png'), other = join(dir, 'photo-2.png');
+  const output = join(dir, 'photo-4.png');
+  const original = await sharp({create: {width: 100, height: 80, channels: 3, background: '#39c'}}).png().toBuffer();
+  await writeFile(photo, original);
+  await writeFile(other, original);
+  await symlink(other, join(dir, 'photo-3.png'));
+  await writeFile(output, 'old output');
+
+  const result = await c.callTool({name: 'resize_photos', arguments: {
+    paths: [photo, other], outDir: dir, size: 50, format: 'png', overwrite: true,
+  }});
+  assert.notEqual(result.isError, true, result.content[0].text);
+  assert.deepEqual(await readFile(photo), original, 'the original photo must not be overwritten');
+  assert.deepEqual(await readFile(other), original, 'other inputs in the batch must not be overwritten');
+  const resized = json(result);
+  assert.equal(resized[0].output, output);
+  assert.equal((await sharp(output).metadata()).width, 50);
 });
 
 test('merge, info, watermark', async () => {

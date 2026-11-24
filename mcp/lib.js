@@ -1,5 +1,5 @@
 // The work behind the MCP tools. Everything runs on this computer; nothing is sent anywhere.
-import {readFile, writeFile, mkdir, access} from 'node:fs/promises';
+import {readFile, writeFile, mkdir, access, stat} from 'node:fs/promises';
 import {basename, extname, join, resolve} from 'node:path';
 import sharp from 'sharp';
 import {PDFDocument, StandardFonts, rgb, degrees} from 'pdf-lib';
@@ -7,11 +7,26 @@ import {PDFDocument, StandardFonts, rgb, degrees} from 'pdf-lib';
 const exists = (p) => access(p).then(() => true, () => false);
 const esc = (t) => t.replace(/[<>&"']/g, (c) => ({'<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;'}[c]));
 
-// Never overwrite a file unless asked, and never write over an input.
-export async function safeOut(dir, name, overwrite) {
+// Compare file identities so another path to an input is protected too.
+async function fileIdentity(path) {
+  const {dev, ino} = await stat(path, {bigint: true}); // NOSONAR: the tool works on the local paths its caller chose
+  return `${dev}:${ino}`;
+}
+
+async function isInput(path, inputs) {
+  if (!inputs) return false;
+  try { return inputs.has(await fileIdentity(path)); }
+  catch (error) {
+    if (error.code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
+// Never overwrite a file unless asked, and skip any protected input even then.
+export async function safeOut(dir, name, overwrite, inputs) {
   await mkdir(dir, {recursive: true});
   const ext = extname(name), stem = basename(name, ext); let n = join(dir, name), k = 1;
-  while (!overwrite && (await exists(n))) n = join(dir, `${stem}-${++k}${ext}`);
+  while (overwrite ? await isInput(n, inputs) : await exists(n)) n = join(dir, `${stem}-${++k}${ext}`);
   return n;
 }
 
@@ -23,6 +38,8 @@ async function textPng(text, px) {
 
 export async function resizePhotos({paths, outDir, size = 1200, square = false, format = 'jpg', quality = 82, watermark = '', overwrite = false}) {
   const results = [];
+  const inputs = new Set();
+  if (overwrite) for (const p of paths) inputs.add(await fileIdentity(p));
   for (const p of paths) {
     const src = resolve(p); const meta = await sharp(src).metadata();
     let img = sharp(src).rotate(); // honour the camera's orientation
@@ -35,7 +52,7 @@ export async function resizePhotos({paths, outDir, size = 1200, square = false, 
       const m = await sharp(buf).metadata(); const mark = await textPng(watermark, Math.max(14, Math.round(m.width / 22)));
       buf = await sharp(buf).composite([{input: mark, gravity: 'centre', blend: 'over'}]).toBuffer();
     }
-    const out = await safeOut(resolve(outDir), basename(src, extname(src)) + (format === 'png' ? '.png' : '.jpg'), overwrite);
+    const out = await safeOut(resolve(outDir), basename(src, extname(src)) + (format === 'png' ? '.png' : '.jpg'), overwrite, inputs);
     const final = format === 'png' ? sharp(buf).png() : sharp(buf).jpeg({quality});
     const info = await final.toFile(out);
     results.push({input: src, output: out, width: info.width, height: info.height, bytes: info.size});
